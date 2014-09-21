@@ -51,6 +51,7 @@ func Static(directory string, options ...StaticOptions) func(http.Handler) http.
 	return func(h http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, req *http.Request) {
 			if req.Method != "GET" && req.Method != "HEAD" {
+				h.ServeHTTP(w, req)
 				return
 			}
 			// Get the file name from the path
@@ -59,10 +60,12 @@ func Static(directory string, options ...StaticOptions) func(http.Handler) http.
 			// if we have a prefix, filter requests by stripping the prefix
 			if opt.Prefix != "" {
 				if !strings.HasPrefix(file, opt.Prefix) {
+					h.ServeHTTP(w, req)
 					return
 				}
 				file = file[len(opt.Prefix):]
 				if file != "" && file[0] != '/' {
+					h.ServeHTTP(w, req)
 					return
 				}
 			}
@@ -70,16 +73,18 @@ func Static(directory string, options ...StaticOptions) func(http.Handler) http.
 			// Open the file and get the stats
 			f, err := dir.Open(file)
 			if err != nil {
+				h.ServeHTTP(w, req)
 				return
 			}
 			defer f.Close()
 
 			fs, err := f.Stat()
 			if err != nil {
+				h.ServeHTTP(w, req)
 				return
 			}
 
-			// try to serve the index file
+			// if the requested resource is a directory, try to serve the index file
 			if fs.IsDir() {
 				// redirect if trailling "/"" is missing
 				if !strings.HasSuffix(req.URL.Path, "/") {
@@ -90,11 +95,13 @@ func Static(directory string, options ...StaticOptions) func(http.Handler) http.
 				file = path.Join(file, opt.IndexFile)
 				f, err = dir.Open(file)
 				if err != nil {
+					h.ServeHTTP(w, req)
 					return
 				}
 				defer f.Close()
 				fs, err = f.Stat()
 				if err != nil || fs.IsDir() {
+					h.ServeHTTP(w, req)
 					return
 				}
 			}
