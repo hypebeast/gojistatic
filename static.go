@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"time"
 )
 
 // StaticOptions is a struct for specifiying configuration options for the goji-static middleware.
@@ -15,6 +16,8 @@ type StaticOptions struct {
 	IndexFile string
 	// SkipLogging will disable [Static] log messages when a static file is served
 	SkipLogging bool
+	// Disable browser caching for files
+	DisableCaching bool
 	// Expires defines which user-defined function to use for producing a HTTP Expires Header
 	// https://developers.google.com/speed/docs/insights/LeverageBrowserCaching
 	Expires func() string
@@ -108,6 +111,14 @@ func Static(directory string, options ...StaticOptions) func(http.Handler) http.
 
 			if !opt.SkipLogging {
 				log.Println("[Static] Serving " + file)
+			}
+
+			if opt.DisableCaching {
+				now := time.Now().UTC()
+				expires := now.Add(-time.Second)
+				w.Header().Set("Date", now.Format(http.TimeFormat))
+				w.Header().Set("Expires", expires.Format(http.TimeFormat))
+				w.Header().Set("Cache-Control", "no-cache")
 			}
 
 			// Add an Expires header to the static content
